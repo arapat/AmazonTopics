@@ -21,15 +21,16 @@ object AmazonWordCount {
         val counters = tokens.map((_, 1))
                              .reduceByKey(_ + _)
         val candidates = counters.filter(_._2 >= 10)
-                                 .filter(_._2 <= (reviewsCount * 0.1).toInt)
+                                 // .filter(_._2 <= (reviewsCount * 0.1).toInt)
                                  .sortBy(_._2, false)
-        candidates.take(100).foreach(println)
+                                 .cache()
+        candidates.collect().foreach(println)
 
         println
         println("The number of reviews: " + reviewsCount.toString)
         println("Total tokens: " + tokens.count.toString)
         println("Total unique tokens: " + counters.count.toString)
-        println("The number of unique tokens appear at least 10 times and at most in 10% of documents")
+        println("The number of unique tokens appear at least 10 times")
         println(candidates.count)
 
         sc.stop()
