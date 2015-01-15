@@ -9,7 +9,7 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg.{Vector, Vectors, SparseVector}
 
 object AmazonCanopyClustering {
-    val stopwords = Array("i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now", "ve", "ll", "haven't", "hasn't", "don't", "doesn't")
+    val stopwords = Array("i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now", "ve", "ll", "haven", "hasn", "don", "doesn")
 
     def computeJSDivergence(vec1: SparseVector, vec2: SparseVector) = {
 
@@ -75,7 +75,7 @@ object AmazonCanopyClustering {
                                 sharedStopwords.value.contains(token) == false)
         val wordsCount = tokens.map((_, 1))
                                .reduceByKey(_ + _)
-                               // .cache
+                               .cache
 
         // word pair will appear twice: (w, v) and (v, w)
         // word w and v should each appear at least 10 times
@@ -86,10 +86,11 @@ object AmazonCanopyClustering {
             .filter {case (w1, w2) =>
               sharedStopwords.value.contains(w1) == false &&
               sharedStopwords.value.contains(w2) == false}
-            .map(p => (p._1, p)).join(wordsCount).filter(_._2._2 >= 10)
-            .map(p => (p._2._1._2, p._2._1)).join(wordsCount).filter(_._2._2 >= 10)
-            .map(p => (p._2._1, 1.0))
-            .reduceByKey(_ + _)
+            .map((_, 1.0)).reduceByKey(_ + _)
+            .map(p => (p._1._1, p)).join(wordsCount).filter(_._2._2 >= 10)
+            .map(_._2._1)
+            .map(p => (p._1._2, p)).join(wordsCount).filter(_._2._2 >= 10)
+            .map(_._2._1)
             .cache
         val pairsSum = pairsCount.map(p => (p._1._1, p._2))
                                  .reduceByKey(_ + _)
@@ -103,6 +104,7 @@ object AmazonCanopyClustering {
                              .join(wordsCount)
                              .map { case (v, (((ww, vv), pc, sum_pc), vc)) =>
                               ((ww, vv), (sum_pc, vc, pc))}
+                             .cache
         val sumWordsCount = wordsCount.map(_._2).reduce(_ + _)
         val kld = stat.map {case ((ww, vv), (sum_pc, vc, pc)) =>
           val div = math.log(pc * sumWordsCount / sum_pc / vc) * pc / sum_pc
@@ -112,10 +114,10 @@ object AmazonCanopyClustering {
         val signature = kld.join(wordsCount)
                            .map {case (w, (div, count)) => (w, div * count)}
                            // .map {case (w, (div, count)) => ((w, div, count), div * count)}
-                           .filter(_._2 >= 400000.0)
-                           .map(_._1)
-                           // .sortBy(_._2, false)
-                           .collect
+                          .filter(_._2 >= 400000.0)
+                          .map(_._1)
+                          // .sortBy(_._2, false)
+                          .collect
 
         val sharedSignature = sc.broadcast(signature)
 
@@ -147,33 +149,30 @@ object AmazonCanopyClustering {
         // end of program
         val jsd_local = jsd.collect()
         jsd_local.foreach(println)
-        // println
-        // sparseVectors.collect().foreach(println)
-        // println
-        // dictList.foreach(println)
         println
-        println("Done.")
-        return
+        sparseVectors.join(wordsCount).collect().foreach(println)
+        println
+        dictList.foreach(println)
 
-        var remainingPoints = sparseVectors.map(_._1).collect()
-        println("Remain: " + remainingPoints.size.toString)
-        val t1 = 0.25
-        val t2 = 0.25
-        while (remainingPoints.nonEmpty) {
-          val sample = remainingPoints(Random.nextInt(remainingPoints.size))
-          val dist = jsd_local.filter {case (w1, w2, c) => (w1 == sample || w2 == sample)}
-                              //.collect
-          val entropy = dist.filter(_._3 <= t1)
-                            .flatMap(p => Array(p._1, p._2))
-                            .filter(remainingPoints.contains(_))
-                            .distinct
-          println(sample + " -> [" + entropy.mkString(", ") + "]")
-          val closePoints = dist.filter(_._3 <= t2)
-                                .flatMap(p => Array(p._1, p._2))
-                                .distinct :+ sample
-          remainingPoints = remainingPoints.filterNot(p => closePoints.contains(p))
-          println("Remain: " + remainingPoints.size.toString)
-        }
+        // var remainingPoints = sparseVectors.map(_._1).collect()
+        // println("Remain: " + remainingPoints.size.toString)
+        // val t1 = 0.25
+        // val t2 = 0.25
+        // while (remainingPoints.nonEmpty) {
+        //   val sample = remainingPoints(Random.nextInt(remainingPoints.size))
+        //   val dist = jsd_local.filter {case (w1, w2, c) => (w1 == sample || w2 == sample)}
+        //                       //.collect
+        //   val entropy = dist.filter(_._3 <= t1)
+        //                     .flatMap(p => Array(p._1, p._2))
+        //                     .filter(remainingPoints.contains(_))
+        //                     .distinct
+        //   println(sample + " -> [" + entropy.mkString(", ") + "]")
+        //   val closePoints = dist.filter(_._3 <= t2)
+        //                         .flatMap(p => Array(p._1, p._2))
+        //                         .distinct :+ sample
+        //   remainingPoints = remainingPoints.filterNot(p => closePoints.contains(p))
+        //   println("Remain: " + remainingPoints.size.toString)
+        // }
 
         // println
         // println("Dict size: " + dictList.size)
