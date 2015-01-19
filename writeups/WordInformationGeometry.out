@@ -1,0 +1,17 @@
+\BOOKMARK [1][-]{section.1}{Preliminaries}{}
+\BOOKMARK [1][-]{section.2}{The Confidence-Rated Prediction Game}{}
+\BOOKMARK [2][-]{subsection.2.1}{First Approach: Minimax Dual}{section.2}
+\BOOKMARK [2][-]{subsection.2.2}{Taking the limit n }{section.2}
+\BOOKMARK [2][-]{subsection.2.3}{taking derivatives}{section.2}
+\BOOKMARK [2][-]{subsection.2.4}{Second Approach: Primal Game}{section.2}
+\BOOKMARK [2][-]{subsection.2.5}{Putting it All Together}{section.2}
+\BOOKMARK [1][-]{section.3}{Algorithm 1 for Finding min0 \(\)}{}
+\BOOKMARK [2][-]{subsection.3.1}{Taking partial derivatives}{section.3}
+\BOOKMARK [1][-]{section.4}{Algorithm 2 for Finding min0 \(\)}{}
+\BOOKMARK [2][-]{subsection.4.1}{Notes on the Constraint Set}{section.4}
+\BOOKMARK [2][-]{subsection.4.2}{Computations with Ct}{section.4}
+\BOOKMARK [1][-]{section.5}{Stochastic Gradient Descent}{}
+\BOOKMARK [1][-]{section.6}{Two-sided Error Constraints}{}
+\BOOKMARK [1][-]{section.7}{Notes on the maximum}{}
+\BOOKMARK [2][-]{subsection.7.1}{Two simple cases}{section.7}
+\BOOKMARK [1][-]{section.8}{Open Problems}{}
